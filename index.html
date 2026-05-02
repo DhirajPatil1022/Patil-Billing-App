@@ -38,8 +38,14 @@
 
         /* Bill Sheet */
         .bill-sheet { background: white; width: 210mm; min-height: 297mm; padding: 45px; position: relative; box-shadow: 0 0 15px rgba(0,0,0,0.2); box-sizing: border-box; overflow: hidden; }
-        .watermark { position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 150px; color: rgba(231, 76, 60, 0.08); font-weight: bold; pointer-events: none; display: none; z-index: 0; }
-        .paid-mode .watermark { display: block; }
+        
+        /* Fixed Watermark Logic */
+        .watermark { 
+            position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); 
+            font-size: 120px; font-weight: bold; pointer-events: none; z-index: 0; display: none; 
+        }
+        .paid-mode .watermark { display: block; color: rgba(39, 174, 96, 0.1); }
+        .quote-mode .watermark { display: block; color: rgba(243, 156, 18, 0.1); }
 
         .header { text-align: center; border-bottom: 2px solid var(--primary); margin-bottom: 20px; padding-bottom: 10px; }
         .shop-name { font-size: 32px; margin: 0; color: var(--primary); font-weight: 800; }
@@ -104,7 +110,7 @@
     </div>
 
     <div class="bill-sheet" id="invoice">
-        <div class="watermark">PAID</div>
+        <div id="bill-watermark" class="watermark">PAID</div>
         <div class="header">
             <h1 class="shop-name">Patil Light House</h1>
             <p style="margin:5px 0;">Govare, Tal. Karad, Dist. Satara. | <b>9545926421</b></p>
@@ -153,7 +159,6 @@
     </div>
 
     <script>
-        // --- 1. FIREBASE INITIALIZATION ---
         const firebaseConfig = {
             apiKey: "AIzaSyDNiEsqbi5B9XixCIXk_lq65Su6uroenvI",
             authDomain: "patil-erp.firebaseapp.com",
@@ -170,8 +175,8 @@
         let quotDB = [];
         let trashDB = [];
         let pressTimer;
+        let currentBillType = 'none';
 
-        // --- 2. SECURITY LOGIC (PIN: 2026) ---
         const SECRET_KEY = "MjAyNg=="; 
 
         function initializeSecurity() {
@@ -187,7 +192,6 @@
             const inputVal = document.getElementById('pin-input').value;
             const hashedInput = btoa(inputVal); 
             const savedPin = localStorage.getItem('offline_pin') || SECRET_KEY;
-
             if (hashedInput === savedPin) {
                 document.getElementById('lock-screen').style.display = 'none';
                 sessionStorage.setItem('isUnlocked', 'true');
@@ -198,7 +202,6 @@
             }
         }
 
-        // --- 3. CLOUD SYNC LOGIC ---
         function startCloudSync() {
             db.ref('shop_data').on('value', (snapshot) => {
                 const data = snapshot.val();
@@ -214,10 +217,6 @@
         }
 
         function saveAll() {
-            localStorage.setItem('patil_paid_v4', JSON.stringify(paidDB));
-            localStorage.setItem('patil_quot_v4', JSON.stringify(quotDB));
-            localStorage.setItem('patil_trash_v4', JSON.stringify(trashDB));
-
             db.ref('shop_data').set({
                 paid: paidDB,
                 quot: quotDB,
@@ -226,18 +225,13 @@
             });
         }
 
-        // --- 4. MAIN LOGIC ---
         function init() {
             document.getElementById('bill-date').innerText = new Date().toLocaleDateString('en-GB');
-            
-            // Check session lock
             if (sessionStorage.getItem('isUnlocked') === 'true') {
                 document.getElementById('lock-screen').style.display = 'none';
             }
-            
             initializeSecurity();
             startCloudSync(); 
-            
             db.ref('shop_data').once('value').then(snap => {
                 const data = snap.val();
                 let lastNo = 136;
@@ -247,7 +241,6 @@
                 }
                 document.getElementById('bill-no').value = lastNo + 1;
             });
-
             addRow();
         }
 
@@ -289,6 +282,20 @@
         }
 
         function saveAndProcess(type) {
+            currentBillType = type;
+            const watermark = document.getElementById('bill-watermark');
+            const body = document.getElementById('app-body');
+            
+            if(type === 'paid') {
+                body.classList.add('paid-mode');
+                body.classList.remove('quote-mode');
+                watermark.innerText = "PAID";
+            } else {
+                body.classList.add('quote-mode');
+                body.classList.remove('paid-mode');
+                watermark.innerText = "QUOTATION";
+            }
+
             const rows = document.getElementById('bill-items').rows;
             let items = [], profit = 0;
             for (let r of rows) {
@@ -348,19 +355,25 @@
         async function sharePDF() {
             const element = document.getElementById('invoice'), cInputs = document.querySelectorAll('.c-val');
             const originalCosts = Array.from(cInputs).map(i => i.value);
+            
+            // Hide cost values and colors for professional PDF
             cInputs.forEach(i => { i.value = "0"; i.parentElement.style.color = "transparent"; });
+            
             const opt = { margin: 0, filename: `Bill_${document.getElementById('bill-no').value}.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+            
             try {
                 const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
                 const file = new File([pdfBlob], opt.filename, { type: 'application/pdf' });
                 if (navigator.share) await navigator.share({ files: [file] }); else html2pdf().set(opt).from(element).save();
-            } finally { cInputs.forEach((i, idx) => { i.value = originalCosts[idx]; i.parentElement.style.color = ""; }); }
+            } finally { 
+                // Restore original UI state
+                cInputs.forEach((i, idx) => { i.value = originalCosts[idx]; i.parentElement.style.color = ""; }); 
+            }
         }
 
         function renderHistory() {
             const query = document.getElementById('searchBox').value.toLowerCase();
             const filterFn = b => b.name.toLowerCase().includes(query) || b.no.toString().includes(query);
-            
             const list = (db, id, type) => {
                 document.getElementById(id).innerHTML = db.filter(filterFn).slice(-15).reverse().map(b => `
                     <div class="history-item" onmousedown="startHold('${b.no}', '${type}')" onmouseup="stopHold()" ontouchstart="startHold('${b.no}', '${type}')" ontouchend="stopHold()" onclick="loadBill('${b.no}', '${type}')">
@@ -368,7 +381,6 @@
                     </div>`).join('');
             };
             list(paidDB, 'paid-log', 'paid'); list(quotDB, 'quot-log', 'quotation');
-
             document.getElementById('trash-log').innerHTML = trashDB.map(b => `
                 <div class="deleted-item">
                     <span>#${b.no} - ${b.name} (₹${b.total})</span>
@@ -381,17 +393,25 @@
             const bill = dbRef.find(b => b.no == billNo); if(!bill) return;
             document.getElementById('cust-name').value = bill.name; document.getElementById('bill-no').value = bill.no;
             document.getElementById('bill-items').innerHTML = ''; bill.items.forEach(i => addRow(i.d, i.c, i.q, i.rt));
-            if(type === 'paid') document.getElementById('app-body').classList.add('paid-mode'); else document.getElementById('app-body').classList.remove('paid-mode');
+            
+            const body = document.getElementById('app-body');
+            const watermark = document.getElementById('bill-watermark');
+            
+            if(type === 'paid') {
+                body.classList.add('paid-mode');
+                body.classList.remove('quote-mode');
+                watermark.innerText = "PAID";
+            } else {
+                body.classList.add('quote-mode');
+                body.classList.remove('paid-mode');
+                watermark.innerText = "QUOTATION";
+            }
             window.scrollTo(0,0);
         }
 
         function resetBill() { location.reload(); }
         window.onload = init;
-
-        // PWA Registration
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
-        }
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
     </script>
 </body>
 </html>
