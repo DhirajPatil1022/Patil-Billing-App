@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patil Light House ERP 2026</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <style>
+        :root { --primary: #2c3e50; --secondary: #27ae60; --accent: #2980b9; --warn: #f39c12; --danger: #e74c3c; --whatsapp: #25D366; --purple: #8e44ad; --gray: #7f8c8d; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+
+        /* Lock Screen Styles */
+        #lock-screen { position:fixed; top:0; left:0; width:100%; height:100%; background:var(--primary); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; }
+        #pin-input { background:white; width:140px; text-align:center; font-size:32px; border-radius:12px; padding:12px; color:black; letter-spacing:8px; border:none; margin: 20px 0; outline: none; }
+        
+        /* Dashboard */
+        .admin-panel { width: 210mm; background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; }
+        .btn-group { display: flex; gap: 5px; flex-wrap: wrap; }
+        .btn { padding: 8px 12px; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold; font-size: 11px; transition: 0.2s; }
+        .btn:active { transform: scale(0.95); }
+
+        /* Stats */
+        .stats-panel { width: 210mm; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px; }
+        .stat-card { background: white; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: center; border-bottom: 4px solid var(--primary); }
+        .stat-card h5 { margin: 0; color: #666; font-size: 10px; text-transform: uppercase; }
+        .stat-card p { margin: 5px 0 0 0; font-size: 18px; font-weight: bold; color: var(--primary); }
+
+        /* Bill Sheet */
+        .bill-sheet { background: white; width: 210mm; min-height: 297mm; padding: 45px; position: relative; box-shadow: 0 0 15px rgba(0,0,0,0.2); box-sizing: border-box; overflow: hidden; }
+        .watermark { position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 150px; color: rgba(231, 76, 60, 0.08); font-weight: bold; pointer-events: none; display: none; z-index: 0; }
+        .paid-mode .watermark { display: block; }
+
+        .header { text-align: center; border-bottom: 2px solid var(--primary); margin-bottom: 20px; padding-bottom: 10px; }
+        .shop-name { font-size: 32px; margin: 0; color: var(--primary); font-weight: 800; }
+        
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 20px; position: relative; z-index: 1; }
+        th, td { border: 1px solid var(--primary); padding: 10px; text-align: center; word-wrap: break-word; font-size: 14px; }
+        .w-sr { width: 7%; } .w-desc { width: 43%; text-align: left !important; } .w-cost { width: 10%; } .w-qty { width: 9%; } .w-rate { width: 13%; } .w-total { width: 18%; }
+
+        input { border: none; width: 100%; background: transparent; font-size: 14px; font-family: inherit; text-align: inherit; }
+        .cost-col { background: #f4fdf4; color: #27ae60; font-weight: bold; }
+        .footer-area { position: absolute; bottom: 70px; right: 70px; text-align: center; }
+        .sig-font { font-family: 'Dancing Script', cursive; font-size: 36px; color: #1a2a6c; }
+
+        /* History & Sync Status */
+        .history-container { width: 210mm; margin-top: 20px; background: white; padding: 20px; border-radius: 8px; box-sizing: border-box; }
+        .sync-status { font-size: 10px; color: var(--secondary); text-align: right; margin-bottom: 5px; }
+        .search-bar { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        .history-grid { display: flex; gap: 20px; margin-bottom: 20px; }
+        .history-box { flex: 1; border: 1px solid #eee; border-radius: 5px; padding: 12px; }
+        .history-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; cursor: pointer; font-size: 13px; user-select: none; }
+        
+        .recycle-bin { border-top: 2px dashed var(--gray); padding-top: 15px; margin-top: 20px; }
+        .deleted-item { background: #fff5f5; color: #c0392b; border: 1px solid #fab1a0; border-radius: 4px; margin-bottom: 5px; padding: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+        .restore-btn { background: var(--secondary); padding: 4px 8px; border-radius: 3px; border: none; color: white; cursor: pointer; font-size: 10px; }
+
+        @media print {
+            .admin-panel, .history-container, .stats-panel, #lock-screen { display: none !important; }
+            .bill-sheet { box-shadow: none; margin: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body id="app-body">
+
+    <div id="lock-screen">
+        <h2 class="sig-font" style="font-size:45px; margin-bottom: 10px;">Patil ERP</h2>
+        <p style="opacity: 0.8;">Secure Billing System</p>
+        <input type="password" id="pin-input" maxlength="4" placeholder="****">
+        <button class="btn" style="background:var(--secondary); padding: 12px 35px; font-size: 14px;" onclick="checkPin()">Unlock System</button>
+        <p id="pin-error" style="color:var(--danger); margin-top:15px; display:none; font-weight: bold;">❌ Incorrect PIN</p>
+    </div>
+
+    <div class="admin-panel">
+        <div style="font-weight: bold; color: var(--primary);">Patil ERP <span id="sync-indicator">☁️</span></div>
+        <div class="btn-group">
+            <button class="btn" style="background:var(--accent)" onclick="addRow()">+ Item</button>
+            <button class="btn" style="background:var(--secondary)" onclick="saveAndProcess('paid')">Save PAID</button>
+            <button class="btn" style="background:var(--warn)" onclick="saveAndProcess('quotation')">Save QUOTE</button>
+            <button class="btn" style="background:var(--primary)" onclick="window.print()">Print</button>
+            <button class="btn" style="background:var(--whatsapp)" onclick="sharePDF()">Share PDF</button>
+            <button class="btn" style="background:var(--purple)" onclick="exportData()">Backup</button>
+            <button class="btn" style="background:var(--gray)" onclick="document.getElementById('importFile').click()">Restore</button>
+            <button class="btn" style="background:var(--danger)" onclick="resetBill()">New Bill</button>
+            <input type="file" id="importFile" style="display:none" onchange="importData(event)">
+        </div>
+    </div>
+
+    <div class="stats-panel">
+        <div class="stat-card" style="border-color: var(--secondary);"><h5>Total Paid</h5><p id="stat-paid-count">0</p></div>
+        <div class="stat-card" style="border-color: var(--warn);"><h5>Total Quotes</h5><p id="stat-quot-count">0</p></div>
+        <div class="stat-card" style="border-color: var(--accent);"><h5>Monthly Profit</h5><p id="stat-month-profit">₹0</p></div>
+        <div class="stat-card" style="border-color: var(--primary);"><h5>Yearly Profit</h5><p id="stat-year-profit">₹0</p></div>
+    </div>
+
+    <div class="bill-sheet" id="invoice">
+        <div class="watermark">PAID</div>
+        <div class="header">
+            <h1 class="shop-name">Patil Light House</h1>
+            <p style="margin:5px 0;">Govare, Tal. Karad, Dist. Satara. | <b>9545926421</b></p>
+            <small>(Fan, Mixer, Motor Repairs & Professional House Wiring)</small>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; margin: 25px 0;">
+            <div><b>To:</b> <input type="text" id="cust-name" placeholder="Customer Name" style="width: 260px; border-bottom: 1px dotted #000; font-weight: bold;"></div>
+            <div style="text-align: right;">
+                <b>No:</b> <input type="number" id="bill-no" style="width: 65px; font-weight: bold; color: #d32f2f;"><br>
+                <b>Date:</b> <span id="bill-date" style="font-weight:bold;"></span>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th class="w-sr">Sr.</th>
+                    <th class="w-desc">Description</th>
+                    <th class="w-cost cost-col">Cost ₹</th>
+                    <th class="w-qty">Qty</th>
+                    <th class="w-rate">Rate ₹</th>
+                    <th class="w-total">Total ₹</th>
+                </tr>
+            </thead>
+            <tbody id="bill-items"></tbody>
+            <tfoot>
+                <tr style="font-weight: bold;"><td colspan="5" style="text-align: right; border:none; padding-right:20px;">GRAND TOTAL:</td><td id="grand-total" style="background: #f8f9fa;">0.00</td></tr>
+            </tfoot>
+        </table>
+
+        <div class="footer-area"><div class="sig-font">S.B. Patil</div><div style="border-top: 1.5px solid #000; width: 160px; padding-top: 5px; font-weight: bold;">Proprietor</div></div>
+    </div>
+
+    <div class="history-container">
+        <div class="sync-status" id="sync-msg">Syncing with Cloud...</div>
+        <input type="text" class="search-bar" id="searchBox" placeholder="🔍 Search current bills..." oninput="renderHistory()">
+        <div class="history-grid">
+            <div class="history-box"><h4 style="color:var(--secondary)">Paid Bills</h4><div id="paid-log"></div></div>
+            <div class="history-box"><h4 style="color:var(--warn)">Quotations</h4><div id="quot-log"></div></div>
+        </div>
+        <div class="recycle-bin">
+            <h4 style="color:var(--gray); margin-bottom: 10px;">🗑 Deleted Bills</h4>
+            <div id="trash-log"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. FIREBASE INITIALIZATION ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDNiEsqbi5B9XixCIXk_lq65Su6uroenvI",
+            authDomain: "patil-erp.firebaseapp.com",
+            databaseURL: "https://patil-erp-default-rtdb.firebaseio.com/",
+            projectId: "patil-erp",
+            storageBucket: "patil-erp.firebasestorage.app",
+            messagingSenderId: "53778194710",
+            appId: "1:53778194710:web:8dc2765838dd99e9be3037"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let paidDB = [];
+        let quotDB = [];
+        let trashDB = [];
+        let pressTimer;
+
+        // --- 2. SECURITY LOGIC (PIN: 2026) ---
+        const SECRET_KEY = "MjAyNg=="; 
+
+        function initializeSecurity() {
+            db.ref('admin_security/pin').once('value').then((snapshot) => {
+                if (!snapshot.exists()) {
+                    db.ref('admin_security/pin').set(SECRET_KEY);
+                }
+                localStorage.setItem('offline_pin', snapshot.val() || SECRET_KEY);
+            });
+        }
+
+        function checkPin() {
+            const inputVal = document.getElementById('pin-input').value;
+            const hashedInput = btoa(inputVal); 
+            const savedPin = localStorage.getItem('offline_pin') || SECRET_KEY;
+
+            if (hashedInput === savedPin) {
+                document.getElementById('lock-screen').style.display = 'none';
+                sessionStorage.setItem('isUnlocked', 'true');
+                initializeSecurity(); 
+            } else {
+                document.getElementById('pin-error').style.display = 'block';
+                document.getElementById('pin-input').value = '';
+            }
+        }
+
+        // --- 3. CLOUD SYNC LOGIC ---
+        function startCloudSync() {
+            db.ref('shop_data').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    paidDB = data.paid || [];
+                    quotDB = data.quot || [];
+                    trashDB = data.trash || [];
+                    updateStats();
+                    renderHistory();
+                    document.getElementById('sync-msg').innerText = "✅ All devices synced";
+                }
+            });
+        }
+
+        function saveAll() {
+            localStorage.setItem('patil_paid_v4', JSON.stringify(paidDB));
+            localStorage.setItem('patil_quot_v4', JSON.stringify(quotDB));
+            localStorage.setItem('patil_trash_v4', JSON.stringify(trashDB));
+
+            db.ref('shop_data').set({
+                paid: paidDB,
+                quot: quotDB,
+                trash: trashDB,
+                lastUpdated: new Date().getTime()
+            });
+        }
+
+        // --- 4. MAIN LOGIC ---
+        function init() {
+            document.getElementById('bill-date').innerText = new Date().toLocaleDateString('en-GB');
+            
+            // Check session lock
+            if (sessionStorage.getItem('isUnlocked') === 'true') {
+                document.getElementById('lock-screen').style.display = 'none';
+            }
+            
+            initializeSecurity();
+            startCloudSync(); 
+            
+            db.ref('shop_data').once('value').then(snap => {
+                const data = snap.val();
+                let lastNo = 136;
+                if(data){
+                    const combined = [...(data.paid||[]), ...(data.quot||[])];
+                    if(combined.length > 0) lastNo = Math.max(...combined.map(d => parseInt(d.no)));
+                }
+                document.getElementById('bill-no').value = lastNo + 1;
+            });
+
+            addRow();
+        }
+
+        function updateStats() {
+            const now = new Date(), currM = now.getMonth(), currY = now.getFullYear();
+            let mP = 0, yP = 0;
+            paidDB.forEach(b => {
+                const d = new Date(b.timestamp);
+                if(d.getFullYear() === currY) { yP += b.profit; if(d.getMonth() === currM) mP += b.profit; }
+            });
+            document.getElementById('stat-paid-count').innerText = paidDB.length;
+            document.getElementById('stat-quot-count').innerText = quotDB.length;
+            document.getElementById('stat-month-profit').innerText = "₹" + mP.toFixed(0);
+            document.getElementById('stat-year-profit').innerText = "₹" + yP.toFixed(0);
+        }
+
+        function addRow(desc='', cost=0, qty=1, rate=0) {
+            const tbody = document.getElementById('bill-items');
+            tbody.insertAdjacentHTML('beforeend', `
+                <tr>
+                    <td class="w-sr">${tbody.rows.length + 1}</td>
+                    <td class="w-desc"><input type="text" value="${desc}"></td>
+                    <td class="w-cost cost-col"><input type="number" class="c-val" value="${cost || 0}" oninput="calc()"></td>
+                    <td class="w-qty"><input type="number" class="q-val" value="${qty}" oninput="calc()"></td>
+                    <td class="w-rate"><input type="number" class="r-val" value="${rate}" oninput="calc()"></td>
+                    <td class="w-total" style="font-weight:bold"><span class="t-val">0.00</span></td>
+                </tr>`);
+            calc();
+        }
+
+        function calc() {
+            let grand = 0;
+            const rows = document.getElementById('bill-items').rows;
+            for (let r of rows) {
+                const q = parseFloat(r.querySelector('.q-val').value) || 0, rt = parseFloat(r.querySelector('.r-val').value) || 0;
+                const total = q * rt; r.querySelector('.t-val').innerText = total.toFixed(2); grand += total;
+            }
+            document.getElementById('grand-total').innerText = grand.toFixed(2);
+        }
+
+        function saveAndProcess(type) {
+            const rows = document.getElementById('bill-items').rows;
+            let items = [], profit = 0;
+            for (let r of rows) {
+                const d = r.querySelector('.w-desc input').value, c = parseFloat(r.querySelector('.c-val').value) || 0;
+                const q = parseFloat(r.querySelector('.q-val').value) || 0, rt = parseFloat(r.querySelector('.r-val').value) || 0;
+                if(d.trim()) { items.push({d, c, q, rt}); profit += (q * rt) - (q * c); }
+            }
+            const doc = { no: document.getElementById('bill-no').value, name: document.getElementById('cust-name').value || "Customer", total: document.getElementById('grand-total').innerText, profit, timestamp: new Date().getTime(), items, billType: type };
+            if(type === 'paid') paidDB.push(doc); else quotDB.push(doc);
+            saveAll(); alert("Saved & Cloud Synced!");
+        }
+
+        function startHold(billNo, type) { pressTimer = window.setTimeout(() => deleteBill(billNo, type), 1000); }
+        function stopHold() { clearTimeout(pressTimer); }
+
+        function deleteBill(billNo, type) {
+            if (confirm(`Move Bill #${billNo} to Recycle Bin?`)) {
+                let targetDB = type === 'paid' ? paidDB : quotDB;
+                let bill = targetDB.find(b => b.no == billNo);
+                trashDB.push(bill);
+                if(type === 'paid') paidDB = paidDB.filter(b => b.no != billNo); else quotDB = quotDB.filter(b => b.no != billNo);
+                saveAll();
+            }
+        }
+
+        function restoreBill(billNo) {
+            let bill = trashDB.find(b => b.no == billNo);
+            if(bill.billType === 'paid') paidDB.push(bill); else quotDB.push(bill);
+            trashDB = trashDB.filter(b => b.no != billNo);
+            saveAll();
+            alert("Bill Restored!");
+        }
+
+        function exportData() {
+            const data = JSON.stringify({ paid: paidDB, quot: quotDB, trash: trashDB });
+            const blob = new Blob([data], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Patil_Backup_${new Date().toLocaleDateString('en-GB')}.json`;
+            a.click();
+        }
+
+        function importData(e) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if(confirm("Restore this backup?")) {
+                        paidDB = data.paid || []; quotDB = data.quot || []; trashDB = data.trash || [];
+                        saveAll(); alert("Restore Complete!");
+                    }
+                } catch(err) { alert("Invalid File!"); }
+            };
+            reader.readAsText(e.target.files[0]);
+        }
+
+        async function sharePDF() {
+            const element = document.getElementById('invoice'), cInputs = document.querySelectorAll('.c-val');
+            const originalCosts = Array.from(cInputs).map(i => i.value);
+            cInputs.forEach(i => { i.value = "0"; i.parentElement.style.color = "transparent"; });
+            const opt = { margin: 0, filename: `Bill_${document.getElementById('bill-no').value}.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+            try {
+                const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
+                const file = new File([pdfBlob], opt.filename, { type: 'application/pdf' });
+                if (navigator.share) await navigator.share({ files: [file] }); else html2pdf().set(opt).from(element).save();
+            } finally { cInputs.forEach((i, idx) => { i.value = originalCosts[idx]; i.parentElement.style.color = ""; }); }
+        }
+
+        function renderHistory() {
+            const query = document.getElementById('searchBox').value.toLowerCase();
+            const filterFn = b => b.name.toLowerCase().includes(query) || b.no.toString().includes(query);
+            
+            const list = (db, id, type) => {
+                document.getElementById(id).innerHTML = db.filter(filterFn).slice(-15).reverse().map(b => `
+                    <div class="history-item" onmousedown="startHold('${b.no}', '${type}')" onmouseup="stopHold()" ontouchstart="startHold('${b.no}', '${type}')" ontouchend="stopHold()" onclick="loadBill('${b.no}', '${type}')">
+                        <span>#${b.no} <b>${b.name}</b></span><span>₹${b.total}</span>
+                    </div>`).join('');
+            };
+            list(paidDB, 'paid-log', 'paid'); list(quotDB, 'quot-log', 'quotation');
+
+            document.getElementById('trash-log').innerHTML = trashDB.map(b => `
+                <div class="deleted-item">
+                    <span>#${b.no} - ${b.name} (₹${b.total})</span>
+                    <button class="restore-btn" onclick="restoreBill('${b.no}')">Restore</button>
+                </div>`).join('');
+        }
+
+        function loadBill(billNo, type) {
+            const dbRef = (type === 'paid') ? paidDB : quotDB;
+            const bill = dbRef.find(b => b.no == billNo); if(!bill) return;
+            document.getElementById('cust-name').value = bill.name; document.getElementById('bill-no').value = bill.no;
+            document.getElementById('bill-items').innerHTML = ''; bill.items.forEach(i => addRow(i.d, i.c, i.q, i.rt));
+            if(type === 'paid') document.getElementById('app-body').classList.add('paid-mode'); else document.getElementById('app-body').classList.remove('paid-mode');
+            window.scrollTo(0,0);
+        }
+
+        function resetBill() { location.reload(); }
+        window.onload = init;
+
+        // PWA Registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+</body>
+</html>
