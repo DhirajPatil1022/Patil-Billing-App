@@ -1,21 +1,29 @@
-const CACHE_NAME = 'patil-erp-cloud-v1'; // Updated name to force a fresh install
+const CACHE_NAME = 'patil-erp-cloud-v2'; // Incremented to v2 to refresh your phone's cache
+
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './logo.png',
-  './sig.png'
+  './sig.png',
+  // Added external libraries to ensure PDF and Firebase work without internet
+  'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
+  'https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap',
+  'https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js',
+  'https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js'
 ];
 
-// Install Event - Caching local UI files
+// Install Event - Caching local UI files and external libraries
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('Caching Patil ERP Assets...');
+      // Using cache.addAll is strict; if one URL fails, it fails all.
+      // This ensures your app is fully protected.
       return cache.addAll(ASSETS);
     })
   );
-  self.skipWaiting(); // Makes the new worker take over immediately
+  self.skipWaiting(); 
 });
 
 // Activate Event - Deleting old cache versions
@@ -41,11 +49,11 @@ self.addEventListener('fetch', (event) => {
                       event.request.url.includes('googleapis.com');
 
   if (isCloudData) {
-    // Let Firebase handle its own offline logic; don't use Service Worker cache
+    // Let Firebase handle its own offline persistence logic
     return fetch(event.request);
   }
 
-  // For everything else (HTML, Images, JS), use Cache-First strategy
+  // For UI assets (HTML, Images, Fonts, PDF Libs), use Cache-First strategy
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);
