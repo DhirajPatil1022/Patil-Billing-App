@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Patil Light House ERP 2026</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -18,7 +18,7 @@
 
     <style>
         :root { --primary: #2c3e50; --secondary: #27ae60; --accent: #2980b9; --warn: #f39c12; --danger: #e74c3c; --whatsapp: #25D366; --purple: #8e44ad; --gray: #7f8c8d; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; -webkit-tap-highlight-color: transparent; }
 
         /* Lock Screen Styles */
         #lock-screen { position:fixed; top:0; left:0; width:100%; height:100%; background:var(--primary); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; }
@@ -39,11 +39,8 @@
         /* Bill Sheet */
         .bill-sheet { background: white; width: 210mm; min-height: 297mm; padding: 45px; position: relative; box-shadow: 0 0 15px rgba(0,0,0,0.2); box-sizing: border-box; overflow: hidden; }
         
-        /* Fixed Watermark Logic */
-        .watermark { 
-            position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); 
-            font-size: 120px; font-weight: bold; pointer-events: none; z-index: 0; display: none; 
-        }
+        /* Watermark Logic */
+        .watermark { position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 120px; font-weight: bold; pointer-events: none; z-index: 0; display: none; }
         .paid-mode .watermark { display: block; color: rgba(39, 174, 96, 0.1); }
         .quote-mode .watermark { display: block; color: rgba(243, 156, 18, 0.1); }
 
@@ -59,14 +56,20 @@
         .footer-area { position: absolute; bottom: 70px; right: 70px; text-align: center; }
         .sig-font { font-family: 'Dancing Script', cursive; font-size: 36px; color: #1a2a6c; }
 
-        /* History & Sync Status */
+        /* History & Long Press Fix */
         .history-container { width: 210mm; margin-top: 20px; background: white; padding: 20px; border-radius: 8px; box-sizing: border-box; }
         .sync-status { font-size: 10px; color: var(--secondary); text-align: right; margin-bottom: 5px; }
         .search-bar { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
         .history-grid { display: flex; gap: 20px; margin-bottom: 20px; }
         .history-box { flex: 1; border: 1px solid #eee; border-radius: 5px; padding: 12px; }
-        .history-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; cursor: pointer; font-size: 13px; user-select: none; }
         
+        .history-item { 
+            padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; 
+            cursor: pointer; font-size: 13px; user-select: none; -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        .history-item:active { background: #ffeaea; }
+
         .recycle-bin { border-top: 2px dashed var(--gray); padding-top: 15px; margin-top: 20px; }
         .deleted-item { background: #fff5f5; color: #c0392b; border: 1px solid #fab1a0; border-radius: 4px; margin-bottom: 5px; padding: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
         .restore-btn { background: var(--secondary); padding: 4px 8px; border-radius: 3px; border: none; color: white; cursor: pointer; font-size: 10px; }
@@ -88,7 +91,7 @@
     </div>
 
     <div class="admin-panel">
-        <div style="font-weight: bold; color: var(--primary);">Patil ERP <span id="sync-indicator">☁️</span></div>
+        <div style="font-weight: bold; color: var(--primary);">Patil ERP <span id="status-icon">🌐</span></div>
         <div class="btn-group">
             <button class="btn" style="background:var(--accent)" onclick="addRow()">+ Item</button>
             <button class="btn" style="background:var(--secondary)" onclick="saveAndProcess('paid')">Save PAID</button>
@@ -149,11 +152,11 @@
         <div class="sync-status" id="sync-msg">Syncing with Cloud...</div>
         <input type="text" class="search-bar" id="searchBox" placeholder="🔍 Search current bills..." oninput="renderHistory()">
         <div class="history-grid">
-            <div class="history-box"><h4 style="color:var(--secondary)">Paid Bills</h4><div id="paid-log"></div></div>
-            <div class="history-box"><h4 style="color:var(--warn)">Quotations</h4><div id="quot-log"></div></div>
+            <div class="history-box"><h4 style="color:var(--secondary)">Paid Bills (Hold to Delete)</h4><div id="paid-log"></div></div>
+            <div class="history-box"><h4 style="color:var(--warn)">Quotations (Hold to Delete)</h4><div id="quot-log"></div></div>
         </div>
         <div class="recycle-bin">
-            <h4 style="color:var(--gray); margin-bottom: 10px;">🗑 Deleted Bills</h4>
+            <h4 style="color:var(--gray); margin-bottom: 10px;">🗑 Recycle Bin</h4>
             <div id="trash-log"></div>
         </div>
     </div>
@@ -170,32 +173,20 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        db.goOnline(); // Force cloud availability
 
-        let paidDB = [];
-        let quotDB = [];
-        let trashDB = [];
-        let pressTimer;
-        let currentBillType = 'none';
-
+        let paidDB = [], quotDB = [], trashDB = [], pressTimer;
         const SECRET_KEY = "MjAyNg=="; 
 
-        function initializeSecurity() {
-            db.ref('admin_security/pin').once('value').then((snapshot) => {
-                if (!snapshot.exists()) {
-                    db.ref('admin_security/pin').set(SECRET_KEY);
-                }
-                localStorage.setItem('offline_pin', snapshot.val() || SECRET_KEY);
-            });
-        }
+        // Network Status Detectors
+        window.addEventListener('offline', () => { document.getElementById('status-icon').innerText = "☁️ (Offline)"; });
+        window.addEventListener('online', () => { document.getElementById('status-icon').innerText = "🌐"; });
 
         function checkPin() {
             const inputVal = document.getElementById('pin-input').value;
-            const hashedInput = btoa(inputVal); 
-            const savedPin = localStorage.getItem('offline_pin') || SECRET_KEY;
-            if (hashedInput === savedPin) {
+            if (btoa(inputVal) === SECRET_KEY) {
                 document.getElementById('lock-screen').style.display = 'none';
                 sessionStorage.setItem('isUnlocked', 'true');
-                initializeSecurity(); 
             } else {
                 document.getElementById('pin-error').style.display = 'block';
                 document.getElementById('pin-input').value = '';
@@ -218,19 +209,15 @@
 
         function saveAll() {
             db.ref('shop_data').set({
-                paid: paidDB,
-                quot: quotDB,
-                trash: trashDB,
+                paid: paidDB, quot: quotDB, trash: trashDB,
                 lastUpdated: new Date().getTime()
             });
         }
 
         function init() {
             document.getElementById('bill-date').innerText = new Date().toLocaleDateString('en-GB');
-            if (sessionStorage.getItem('isUnlocked') === 'true') {
-                document.getElementById('lock-screen').style.display = 'none';
-            }
-            initializeSecurity();
+            if (sessionStorage.getItem('isUnlocked') === 'true') document.getElementById('lock-screen').style.display = 'none';
+            
             startCloudSync(); 
             db.ref('shop_data').once('value').then(snap => {
                 const data = snap.val();
@@ -242,19 +229,6 @@
                 document.getElementById('bill-no').value = lastNo + 1;
             });
             addRow();
-        }
-
-        function updateStats() {
-            const now = new Date(), currM = now.getMonth(), currY = now.getFullYear();
-            let mP = 0, yP = 0;
-            paidDB.forEach(b => {
-                const d = new Date(b.timestamp);
-                if(d.getFullYear() === currY) { yP += b.profit; if(d.getMonth() === currM) mP += b.profit; }
-            });
-            document.getElementById('stat-paid-count').innerText = paidDB.length;
-            document.getElementById('stat-quot-count').innerText = quotDB.length;
-            document.getElementById('stat-month-profit').innerText = "₹" + mP.toFixed(0);
-            document.getElementById('stat-year-profit').innerText = "₹" + yP.toFixed(0);
         }
 
         function addRow(desc='', cost=0, qty=1, rate=0) {
@@ -282,18 +256,13 @@
         }
 
         function saveAndProcess(type) {
-            currentBillType = type;
-            const watermark = document.getElementById('bill-watermark');
             const body = document.getElementById('app-body');
+            const watermark = document.getElementById('bill-watermark');
             
             if(type === 'paid') {
-                body.classList.add('paid-mode');
-                body.classList.remove('quote-mode');
-                watermark.innerText = "PAID";
+                body.className = 'paid-mode'; watermark.innerText = "PAID";
             } else {
-                body.classList.add('quote-mode');
-                body.classList.remove('paid-mode');
-                watermark.innerText = "QUOTATION";
+                body.className = 'quote-mode'; watermark.innerText = "QUOTATION";
             }
 
             const rows = document.getElementById('bill-items').rows;
@@ -305,19 +274,23 @@
             }
             const doc = { no: document.getElementById('bill-no').value, name: document.getElementById('cust-name').value || "Customer", total: document.getElementById('grand-total').innerText, profit, timestamp: new Date().getTime(), items, billType: type };
             if(type === 'paid') paidDB.push(doc); else quotDB.push(doc);
-            saveAll(); alert("Saved & Cloud Synced!");
+            saveAll(); alert(navigator.onLine ? "Synced to Cloud!" : "Saved locally (Will sync later)");
         }
 
-        function startHold(billNo, type) { pressTimer = window.setTimeout(() => deleteBill(billNo, type), 1000); }
+        // Enhanced Delete Handlers (Works on Mobile/Apple/Samsung)
+        function startHold(billNo, type) { pressTimer = window.setTimeout(() => deleteBill(billNo, type), 850); }
         function stopHold() { clearTimeout(pressTimer); }
 
         function deleteBill(billNo, type) {
             if (confirm(`Move Bill #${billNo} to Recycle Bin?`)) {
-                let targetDB = type === 'paid' ? paidDB : quotDB;
+                let targetDB = (type === 'paid' ? paidDB : quotDB);
                 let bill = targetDB.find(b => b.no == billNo);
-                trashDB.push(bill);
-                if(type === 'paid') paidDB = paidDB.filter(b => b.no != billNo); else quotDB = quotDB.filter(b => b.no != billNo);
-                saveAll();
+                if(bill) {
+                    trashDB.push(bill);
+                    if(type === 'paid') paidDB = paidDB.filter(b => b.no != billNo); 
+                    else quotDB = quotDB.filter(b => b.no != billNo);
+                    saveAll();
+                }
             }
         }
 
@@ -326,49 +299,6 @@
             if(bill.billType === 'paid') paidDB.push(bill); else quotDB.push(bill);
             trashDB = trashDB.filter(b => b.no != billNo);
             saveAll();
-            alert("Bill Restored!");
-        }
-
-        function exportData() {
-            const data = JSON.stringify({ paid: paidDB, quot: quotDB, trash: trashDB });
-            const blob = new Blob([data], { type: 'application/json' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `Patil_Backup_${new Date().toLocaleDateString('en-GB')}.json`;
-            a.click();
-        }
-
-        function importData(e) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                try {
-                    const data = JSON.parse(event.target.result);
-                    if(confirm("Restore this backup?")) {
-                        paidDB = data.paid || []; quotDB = data.quot || []; trashDB = data.trash || [];
-                        saveAll(); alert("Restore Complete!");
-                    }
-                } catch(err) { alert("Invalid File!"); }
-            };
-            reader.readAsText(e.target.files[0]);
-        }
-
-        async function sharePDF() {
-            const element = document.getElementById('invoice'), cInputs = document.querySelectorAll('.c-val');
-            const originalCosts = Array.from(cInputs).map(i => i.value);
-            
-            // Hide cost values and colors for professional PDF
-            cInputs.forEach(i => { i.value = "0"; i.parentElement.style.color = "transparent"; });
-            
-            const opt = { margin: 0, filename: `Bill_${document.getElementById('bill-no').value}.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-            
-            try {
-                const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
-                const file = new File([pdfBlob], opt.filename, { type: 'application/pdf' });
-                if (navigator.share) await navigator.share({ files: [file] }); else html2pdf().set(opt).from(element).save();
-            } finally { 
-                // Restore original UI state
-                cInputs.forEach((i, idx) => { i.value = originalCosts[idx]; i.parentElement.style.color = ""; }); 
-            }
         }
 
         function renderHistory() {
@@ -376,11 +306,11 @@
             const filterFn = b => b.name.toLowerCase().includes(query) || b.no.toString().includes(query);
             const list = (db, id, type) => {
                 document.getElementById(id).innerHTML = db.filter(filterFn).slice(-15).reverse().map(b => `
-                    <div class="history-item" onmousedown="startHold('${b.no}', '${type}')" onmouseup="stopHold()" ontouchstart="startHold('${b.no}', '${type}')" ontouchend="stopHold()" onclick="loadBill('${b.no}', '${type}')">
+                    <div class="history-item" oncontextmenu="return false;" onmousedown="startHold('${b.no}', '${type}')" onmouseup="stopHold()" ontouchstart="startHold('${b.no}', '${type}')" ontouchend="stopHold()" onclick="loadBill('${b.no}', '${type}')">
                         <span>#${b.no} <b>${b.name}</b></span><span>₹${b.total}</span>
                     </div>`).join('');
             };
-            list(paidDB, 'paid-log', 'paid'); list(quotDB, 'quot-log', 'quotation');
+            list(paidDB, 'paid-log', 'paid'); list(quotDB, 'quot-log', 'quot');
             document.getElementById('trash-log').innerHTML = trashDB.map(b => `
                 <div class="deleted-item">
                     <span>#${b.no} - ${b.name} (₹${b.total})</span>
@@ -388,25 +318,58 @@
                 </div>`).join('');
         }
 
+        function updateStats() {
+            const now = new Date(), currM = now.getMonth(), currY = now.getFullYear();
+            let mP = 0, yP = 0;
+            paidDB.forEach(b => {
+                const d = new Date(b.timestamp);
+                if(d.getFullYear() === currY) { yP += b.profit; if(d.getMonth() === currM) mP += b.profit; }
+            });
+            document.getElementById('stat-paid-count').innerText = paidDB.length;
+            document.getElementById('stat-quot-count').innerText = quotDB.length;
+            document.getElementById('stat-month-profit').innerText = "₹" + mP.toFixed(0);
+            document.getElementById('stat-year-profit').innerText = "₹" + yP.toFixed(0);
+        }
+
         function loadBill(billNo, type) {
             const dbRef = (type === 'paid') ? paidDB : quotDB;
             const bill = dbRef.find(b => b.no == billNo); if(!bill) return;
             document.getElementById('cust-name').value = bill.name; document.getElementById('bill-no').value = bill.no;
             document.getElementById('bill-items').innerHTML = ''; bill.items.forEach(i => addRow(i.d, i.c, i.q, i.rt));
-            
-            const body = document.getElementById('app-body');
-            const watermark = document.getElementById('bill-watermark');
-            
-            if(type === 'paid') {
-                body.classList.add('paid-mode');
-                body.classList.remove('quote-mode');
-                watermark.innerText = "PAID";
-            } else {
-                body.classList.add('quote-mode');
-                body.classList.remove('paid-mode');
-                watermark.innerText = "QUOTATION";
-            }
+            document.getElementById('app-body').className = (type === 'paid' ? 'paid-mode' : 'quote-mode');
+            document.getElementById('bill-watermark').innerText = (type === 'paid' ? 'PAID' : 'QUOTATION');
             window.scrollTo(0,0);
+        }
+
+        function exportData() {
+            const data = JSON.stringify({ paid: paidDB, quot: quotDB, trash: trashDB });
+            const blob = new Blob([data], { type: 'application/json' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+            a.download = `Patil_Backup_${new Date().toLocaleDateString('en-GB')}.json`; a.click();
+        }
+
+        function importData(e) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const data = JSON.parse(event.target.result);
+                paidDB = data.paid || []; quotDB = data.quot || []; trashDB = data.trash || [];
+                saveAll(); alert("Data Restored!");
+            };
+            reader.readAsText(e.target.files[0]);
+        }
+
+        async function sharePDF() {
+            const element = document.getElementById('invoice'), cInputs = document.querySelectorAll('.c-val');
+            const originalCosts = Array.from(cInputs).map(i => i.value);
+            cInputs.forEach(i => { i.value = "0"; i.parentElement.style.color = "transparent"; });
+            const opt = { margin: 0, filename: `Bill_${document.getElementById('bill-no').value}.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4' } };
+            try {
+                const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
+                const file = new File([pdfBlob], opt.filename, { type: 'application/pdf' });
+                if (navigator.share) await navigator.share({ files: [file] }); else html2pdf().set(opt).from(element).save();
+            } finally { 
+                cInputs.forEach((i, idx) => { i.value = originalCosts[idx]; i.parentElement.style.color = ""; }); 
+            }
         }
 
         function resetBill() { location.reload(); }
